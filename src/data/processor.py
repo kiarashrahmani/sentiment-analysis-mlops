@@ -35,7 +35,7 @@ class IMDBReviewLoader(DataLoaderInterface):
             
         df = pd.read_csv(file_path)
         
-        # Map 'text' column if it's named 'review' (yours is already 'text', so this is safe)
+        # Map 'text' column if it's named 'review'
         if 'review' in df.columns:
             df = df.rename(columns={'review': 'text'})
             
