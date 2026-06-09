@@ -1,5 +1,6 @@
 import argparse
 import logging
+import os
 from pathlib import Path
 import json
 import pandas as pd
@@ -8,8 +9,7 @@ from config import settings
 import mlflow
 import mlflow.sklearn
 
-from src.data import IMDBReviewLoader, BasicTextCleaner, DataProcessor
-from src.models import BaselineModel, DistilBERTModel
+from src.models.baseline import BaselineModel
 
 # Configure logging
 logging.basicConfig(
@@ -25,11 +25,14 @@ def train_model(model_type="baseline", data_path=None, sample_size=None, output_
     """
     logger.info(f"Starting training for {model_type} model")
 
-    mlflow.set_tracking_uri("sqlite:///mlflow.db")
-    mlflow.set_experiment("sentiment-analysis")
+    tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
+    experiment_name = os.getenv("MLFLOW_EXPERIMENT_NAME", "sentiment-analysis")
+    mlflow.set_tracking_uri(tracking_uri)
+    mlflow.set_experiment(experiment_name)
 
     # [MLflow] Start an active experiment run
-    with mlflow.start_run(run_name=f"{model_type}_training"):
+    run_suffix = f"_n{sample_size}" if sample_size else ""
+    with mlflow.start_run(run_name=f"{model_type}_training{run_suffix}"):
         
         # Determine the directory where processed data is stored
         processed_dir = Path(data_path or settings.processed_data_dir)
@@ -68,6 +71,8 @@ def train_model(model_type="baseline", data_path=None, sample_size=None, output_
                 "vectorizer_max_features": 5000
             })
         elif model_type == "distilbert":
+            from src.models.distilbert import DistilBERTModel
+
             model = DistilBERTModel(
                 max_length=settings.max_length,
                 batch_size=settings.batch_size,
