@@ -33,5 +33,27 @@ services:
       - ./models:/app/models
     entrypoint: ["python"]
 
+  api:
+    build: .
+    container_name: sentiment-api
+    depends_on:
+      - mlflow
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MLFLOW_EXPERIMENT_NAME: sentiment-analysis
+      MODEL_PATH: /app/models/baseline_model.pkl
+      REFERENCE_DATA_PATH: /app/data/processed/train.csv
+      MONITORING_LOG_DIR: /app/logs
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data:ro
+      - ./models:/app/models:ro
+      - ./logs:/app/logs
+    command: >
+      uvicorn main:app
+      --host 0.0.0.0
+      --port 8000
+
 volumes:
   mlflow_data:
