@@ -8,6 +8,7 @@ services:
       --port 5000
       --backend-store-uri sqlite:////mlflow/mlflow.db
       --default-artifact-root /mlflow/artifacts
+      --serve-artifacts
       --allowed-hosts mlflow,mlflow:5000,localhost,localhost:5000,127.0.0.1,127.0.0.1:5000,0.0.0.0
     ports:
       - "5000:5000"
@@ -37,23 +38,38 @@ services:
     build: .
     container_name: sentiment-api
     depends_on:
-      - mlflow
+      mlflow:
+        condition: service_healthy
+    ports:
+      - "${API_HOST_PORT:-8081}:8080"
     environment:
       MLFLOW_TRACKING_URI: http://mlflow:5000
       MLFLOW_EXPERIMENT_NAME: sentiment-analysis
+      MLFLOW_MODEL_NAME: SentimentBaselineModel
+      MLFLOW_MODEL_STAGE: Production
       MODEL_PATH: /app/models/baseline_model.pkl
       REFERENCE_DATA_PATH: /app/data/processed/train.csv
       MONITORING_LOG_DIR: /app/logs
-    ports:
-      - "8000:8000"
+      QUANTIZED_MODEL_DIR: /app/models/quantized
+      BATCH_MAX_SIZE: 32
+      BATCH_WAIT_MS: 25
+      GIT_PYTHON_REFRESH: quiet
     volumes:
       - ./data:/app/data:ro
-      - ./models:/app/models:ro
+      - ./models:/app/models
+      - ./reports:/app/reports
       - ./logs:/app/logs
+      - mlflow_data:/mlflow
     command: >
       uvicorn main:app
       --host 0.0.0.0
-      --port 8000
+      --port 8080
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
 
 volumes:
   mlflow_data:
